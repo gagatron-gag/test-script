@@ -1,550 +1,505 @@
--- ❄ Ervo Hub | Trade Freezer v5.0
--- FAKE / VISUAL PROP ONLY — does nothing real
--- LocalScript / Executor compatible
+-- Ervo Hub | Trade Machine Freezer v3.1
+-- LocalScript → StarterPlayerScripts
 
-local Players      = game:GetService("Players")
+local Players    = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local RunService   = game:GetService("RunService")
-local lp           = Players.LocalPlayer
-local pg           = lp:WaitForChild("PlayerGui")
+local RunService = game:GetService("RunService")
 
-if pg:FindFirstChild("ErvoHub") then pg.ErvoHub:Destroy() end
+local player    = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- ── Colors ───────────────────────────────────────────────────────────────────
-local C = {
-    bg     = Color3.fromRGB(8,   12,  20),
-    panel  = Color3.fromRGB(14,  20,  32),
-    dark   = Color3.fromRGB(4,    7,  13),
-    border = Color3.fromRGB(22,  38,  58),
-    cyan   = Color3.fromRGB(0,  205, 255),
-    ice    = Color3.fromRGB(160, 230, 255),
-    blue   = Color3.fromRGB(0,   78, 140),
-    bluhi  = Color3.fromRGB(0,  110, 185),
-    text   = Color3.fromRGB(190, 215, 238),
-    muted  = Color3.fromRGB(60,  90, 118),
-    green  = Color3.fromRGB(0,  210, 100),
-    warn   = Color3.fromRGB(255, 165,   0),
-    red    = Color3.fromRGB(255,  60,  90),
-    white  = Color3.fromRGB(225, 240, 255),
-}
+-- ══════════════════════════════════════════
+-- CONSTANTS
+-- ══════════════════════════════════════════
+local W, H        = 300, 252
+local COL_BG      = Color3.fromRGB(6, 14, 28)
+local COL_BAR     = Color3.fromRGB(10, 24, 48)
+local COL_BLUE    = Color3.fromRGB(55, 140, 240)
+local COL_BLUEDIM = Color3.fromRGB(40, 90, 170)
+local COL_TEXT    = Color3.fromRGB(160, 205, 255)
+local COL_TEXTDIM = Color3.fromRGB(55, 105, 175)
+local COL_GREEN   = Color3.fromRGB(50, 200, 130)
+local COL_ACCENT  = Color3.fromRGB(75, 165, 255)
+local FONT_BOLD   = Enum.Font.GothamBold
+local FONT_REG    = Enum.Font.Gotham
+local RADIUS_SM   = UDim.new(0, 6)
+local RADIUS_MD   = UDim.new(0, 10)
+local RADIUS_LG   = UDim.new(0, 14)
 
--- ── Helpers ──────────────────────────────────────────────────────────────────
-local function N(cls, props, parent)
-    local o = Instance.new(cls)
-    for k, v in pairs(props) do o[k] = v end
-    if parent then o.Parent = parent end
-    return o
-end
-local function CR(r, p)    N("UICorner",  {CornerRadius = UDim.new(0, r)}, p) end
-local function ST(c, t, p) N("UIStroke",  {Color = c, Thickness = t or 1}, p) end
-local function PAD(l,r,t,b,p) N("UIPadding",{PaddingLeft=UDim.new(0,l),PaddingRight=UDim.new(0,r),PaddingTop=UDim.new(0,t),PaddingBottom=UDim.new(0,b)},p) end
-local function TW(obj, dur, props)
-    TweenService:Create(obj, TweenInfo.new(dur, Enum.EasingStyle.Quad), props):Play()
+local function corner(parent, r) local c = Instance.new("UICorner", parent); c.CornerRadius = r or RADIUS_SM; return c end
+local function stroke(parent, col, t, thick) local s = Instance.new("UIStroke", parent); s.Color = col; s.Transparency = t or 0.4; s.Thickness = thick or 1; return s end
+
+local function label(parent, props)
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.BorderSizePixel = 0
+	for k, v in pairs(props) do l[k] = v end
+	l.Parent = parent
+	return l
 end
 
--- ── ScreenGui ────────────────────────────────────────────────────────────────
-local sg = N("ScreenGui", {
-    Name           = "ErvoHub",
-    ResetOnSpawn   = false,
-    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    IgnoreGuiInset = true,
-}, pg)
+local function frame(parent, props)
+	local f = Instance.new("Frame")
+	f.BorderSizePixel = 0
+	for k, v in pairs(props) do f[k] = v end
+	f.Parent = parent
+	return f
+end
 
--- ── Main Window (compact: 320 × 395) ────────────────────────────────────────
-local main = N("Frame", {
-    Size                 = UDim2.new(0, 320, 0, 395),
-    Position             = UDim2.new(0.5, -160, 0.5, -197),
-    BackgroundColor3     = C.bg,
-    BackgroundTransparency = 0.06,
-    BorderSizePixel      = 0,
-    ClipsDescendants     = true,
-}, sg)
-CR(10, main)
-ST(C.border, 1, main)
+-- ══════════════════════════════════════════
+-- SCREEN GUI
+-- ══════════════════════════════════════════
+local sg = Instance.new("ScreenGui")
+sg.Name            = "ErvoHub"
+sg.ResetOnSpawn    = false
+sg.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
+sg.IgnoreGuiInset  = true
+sg.Parent          = playerGui
 
--- Entrance animation
-main.Position            = UDim2.new(0.5, -160, 0.5, -177)
-main.BackgroundTransparency = 1
-TW(main, 0.4, {
-    Position             = UDim2.new(0.5, -160, 0.5, -197),
-    BackgroundTransparency = 0.06,
+-- ══════════════════════════════════════════
+-- MAIN FRAME
+-- ══════════════════════════════════════════
+local main = Instance.new("Frame")
+main.Name                  = "Main"
+main.Size                  = UDim2.new(0, W, 0, H)
+main.Position              = UDim2.new(0.5, -W/2, 0.5, -H/2)
+main.BackgroundColor3      = COL_BG
+main.BackgroundTransparency= 0.12
+main.BorderSizePixel       = 0
+main.Active                = true
+main.Draggable             = true
+main.ClipsDescendants      = true
+main.Parent                = sg
+corner(main, RADIUS_LG)
+stroke(main, COL_BLUE, 0.5, 1)
+
+-- ══════════════════════════════════════════
+-- SCANLINES
+-- ══════════════════════════════════════════
+for i = 0, 30 do
+	local sl = frame(main, {
+		Size                  = UDim2.new(1, 0, 0, 1),
+		Position              = UDim2.new(0, 0, 0, i * 9),
+		BackgroundColor3      = COL_BLUE,
+		BackgroundTransparency= 0.92,
+		ZIndex                = 2,
+	})
+end
+
+-- ══════════════════════════════════════════
+-- SNOWFLAKES (parented to main → move with GUI)
+-- ══════════════════════════════════════════
+local SNOW = {"❄","❅","·","∗","◦","❆"}
+task.spawn(function()
+	while sg.Parent do
+		local lbl = Instance.new("TextLabel")
+		lbl.BackgroundTransparency = 1
+		lbl.Text         = SNOW[math.random(#SNOW)]
+		lbl.TextSize     = math.random(7, 12)
+		lbl.TextColor3   = COL_BLUEDIM
+		lbl.TextTransparency = math.random(55, 80) / 100
+		lbl.Font         = FONT_REG
+		lbl.Size         = UDim2.new(0, 14, 0, 14)
+		lbl.Position     = UDim2.new(math.random(0, 100) / 100, 0, -0.06, 0)
+		lbl.ZIndex       = 3
+		lbl.Parent       = main
+		local dur = math.random(60, 110) / 10
+		TweenService:Create(lbl, TweenInfo.new(dur, Enum.EasingStyle.Linear), {
+			Position        = UDim2.new(math.random(0,100)/100, math.random(-18,18), 1.08, 0),
+			TextTransparency= 1,
+		}):Play()
+		game:GetService("Debris"):AddItem(lbl, dur)
+		task.wait(math.random(3, 7) / 10)
+	end
+end)
+
+-- ══════════════════════════════════════════
+-- TOP BAR
+-- ══════════════════════════════════════════
+local topBar = frame(main, {
+	Size             = UDim2.new(1, 0, 0, 38),
+	BackgroundColor3 = COL_BAR,
+	BackgroundTransparency = 0.0,
+	ZIndex           = 10,
+})
+-- top bar corners only on top
+corner(topBar, RADIUS_LG)
+-- patch bottom corners flat
+frame(topBar, {
+	Size             = UDim2.new(1, 0, 0.5, 0),
+	Position         = UDim2.new(0, 0, 0.5, 0),
+	BackgroundColor3 = COL_BAR,
+	BackgroundTransparency = 0.0,
+	ZIndex           = 10,
 })
 
--- ── Title Bar ────────────────────────────────────────────────────────────────
-local tbar = N("Frame", {
-    Size             = UDim2.new(1, 0, 0, 34),
-    BackgroundColor3 = Color3.fromRGB(6, 10, 18),
-    BackgroundTransparency = 0.04,
-    BorderSizePixel  = 0,
-    ZIndex           = 5,
-}, main)
-CR(10, tbar)
--- fill bottom corners
-N("Frame", {
-    Size             = UDim2.new(1, 0, 0, 10),
-    Position         = UDim2.new(0, 0, 1, -10),
-    BackgroundColor3 = Color3.fromRGB(6, 10, 18),
-    BackgroundTransparency = 0.04,
-    BorderSizePixel  = 0,
-    ZIndex           = 5,
-}, tbar)
+-- bottom divider
+frame(topBar, {
+	Size             = UDim2.new(1, 0, 0, 1),
+	Position         = UDim2.new(0, 0, 1, -1),
+	BackgroundColor3 = COL_BLUE,
+	BackgroundTransparency = 0.55,
+	ZIndex           = 11,
+})
 
--- Traffic dots
-for i, dc in ipairs({Color3.fromRGB(255,95,87), Color3.fromRGB(254,188,46), Color3.fromRGB(40,200,64)}) do
-    CR(10, N("Frame", {
-        Size             = UDim2.new(0, 9, 0, 9),
-        Position         = UDim2.new(0, 8+(i-1)*15, 0.5, -4),
-        BackgroundColor3 = dc,
-        BorderSizePixel  = 0,
-        ZIndex           = 6,
-    }, tbar))
-end
+-- left accent stripe
+frame(topBar, {
+	Size             = UDim2.new(0, 2, 0.55, 0),
+	Position         = UDim2.new(0, 0, 0.225, 0),
+	BackgroundColor3 = COL_ACCENT,
+	BackgroundTransparency = 0,
+	ZIndex           = 12,
+})
 
-N("TextLabel", {
-    Size                 = UDim2.new(1, 0, 1, 0),
-    BackgroundTransparency = 1,
-    Text                 = "❄  ERVO HUB",
-    TextColor3           = C.cyan,
-    Font                 = Enum.Font.Code,
-    TextSize             = 13,
-    TextXAlignment       = Enum.TextXAlignment.Center,
-    ZIndex               = 6,
-}, tbar)
+-- "ERVO HUB" pill
+local hubPill = frame(topBar, {
+	Size             = UDim2.new(0, 62, 0, 17),
+	Position         = UDim2.new(0, 10, 0.5, -9),
+	BackgroundColor3 = Color3.fromRGB(25, 65, 140),
+	BackgroundTransparency = 0.2,
+	ZIndex           = 12,
+})
+corner(hubPill, UDim.new(0, 4))
+label(hubPill, {
+	Size             = UDim2.new(1, 0, 1, 0),
+	Text             = "ERVO HUB",
+	TextColor3       = COL_ACCENT,
+	TextSize         = 8,
+	Font             = FONT_BOLD,
+	ZIndex           = 13,
+})
 
-local xBtn = N("TextButton", {
-    Size             = UDim2.new(0, 18, 0, 18),
-    Position         = UDim2.new(1, -24, 0.5, -9),
-    BackgroundColor3 = Color3.fromRGB(70, 15, 25),
-    BorderSizePixel  = 0,
-    Text             = "✕",
-    TextColor3       = Color3.fromRGB(255, 90, 90),
-    Font             = Enum.Font.GothamBold,
-    TextSize         = 10,
-    AutoButtonColor  = false,
-    ZIndex           = 7,
-}, tbar)
-CR(4, xBtn)
-xBtn.MouseButton1Click:Connect(function()
-    TW(main, 0.28, {BackgroundTransparency = 1, Position = UDim2.new(0.5,-160,0.5,-177)})
-    task.wait(0.3); sg:Destroy()
+-- title
+label(topBar, {
+	Size             = UDim2.new(0, 140, 1, 0),
+	Position         = UDim2.new(0, 80, 0, 0),
+	Text             = "TRADE MACHINE FREEZER",
+	TextColor3       = COL_TEXT,
+	TextSize         = 10,
+	Font             = FONT_BOLD,
+	TextXAlignment   = Enum.TextXAlignment.Left,
+	ZIndex           = 12,
+})
+
+-- version
+label(topBar, {
+	Size             = UDim2.new(0, 30, 0, 12),
+	Position         = UDim2.new(1, -74, 0.5, -6),
+	Text             = "v3.1",
+	TextColor3       = COL_TEXTDIM,
+	TextSize         = 8,
+	Font             = FONT_REG,
+	ZIndex           = 12,
+})
+
+-- minimize button
+local minBtn = Instance.new("TextButton")
+minBtn.Size                = UDim2.new(0, 26, 0, 20)
+minBtn.Position            = UDim2.new(1, -32, 0.5, -10)
+minBtn.BackgroundColor3    = Color3.fromRGB(20, 55, 115)
+minBtn.BackgroundTransparency = 0.2
+minBtn.Text                = "−"
+minBtn.TextColor3          = COL_ACCENT
+minBtn.TextSize            = 13
+minBtn.Font                = FONT_BOLD
+minBtn.BorderSizePixel     = 0
+minBtn.AutoButtonColor     = false
+minBtn.ZIndex              = 14
+minBtn.Parent              = topBar
+corner(minBtn, UDim.new(0, 5))
+stroke(minBtn, COL_BLUE, 0.45, 1)
+
+minBtn.MouseEnter:Connect(function() TweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundTransparency=0}):Play() end)
+minBtn.MouseLeave:Connect(function() TweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundTransparency=0.2}):Play() end)
+
+-- ══════════════════════════════════════════
+-- BODY
+-- ══════════════════════════════════════════
+local body = frame(main, {
+	Name             = "Body",
+	Size             = UDim2.new(1, 0, 1, -38),
+	Position         = UDim2.new(0, 0, 0, 38),
+	BackgroundTransparency = 1,
+	ZIndex           = 8,
+})
+
+-- ── status row ──────────────────────────
+local statusDot = frame(body, {
+	Size             = UDim2.new(0, 6, 0, 6),
+	Position         = UDim2.new(0, 16, 0, 17),
+	BackgroundColor3 = COL_BLUE,
+	ZIndex           = 9,
+})
+corner(statusDot, UDim.new(1, 0))
+
+local statusLbl = label(body, {
+	Size             = UDim2.new(1, -40, 0, 18),
+	Position         = UDim2.new(0, 28, 0, 10),
+	Text             = "IDLE  ·  awaiting command",
+	TextColor3       = COL_TEXTDIM,
+	TextSize         = 9,
+	Font             = FONT_REG,
+	TextXAlignment   = Enum.TextXAlignment.Left,
+	ZIndex           = 9,
+})
+
+-- separator
+frame(body, {
+	Size             = UDim2.new(1, -32, 0, 1),
+	Position         = UDim2.new(0, 16, 0, 36),
+	BackgroundColor3 = COL_BLUEDIM,
+	BackgroundTransparency = 0.65,
+	ZIndex           = 9,
+})
+
+-- ── freeze button ───────────────────────
+local freezeBtn = Instance.new("TextButton")
+freezeBtn.Size               = UDim2.new(1, -32, 0, 48)
+freezeBtn.Position           = UDim2.new(0, 16, 0, 48)
+freezeBtn.BackgroundColor3   = Color3.fromRGB(12, 42, 98)
+freezeBtn.BackgroundTransparency = 0.05
+freezeBtn.Text               = ""
+freezeBtn.BorderSizePixel    = 0
+freezeBtn.AutoButtonColor    = false
+freezeBtn.ZIndex             = 9
+freezeBtn.Parent             = body
+corner(freezeBtn, RADIUS_MD)
+local fbStroke = stroke(freezeBtn, COL_BLUE, 0.35, 1)
+
+-- left accent stripe on button
+local btnAccent = frame(freezeBtn, {
+	Size             = UDim2.new(0, 2, 0.6, 0),
+	Position         = UDim2.new(0, 0, 0.2, 0),
+	BackgroundColor3 = COL_ACCENT,
+	ZIndex           = 10,
+})
+corner(btnAccent, UDim.new(0, 2))
+
+-- spinning snowflake
+local btnIcon = label(freezeBtn, {
+	Size             = UDim2.new(0, 30, 1, 0),
+	Position         = UDim2.new(0, 10, 0, 0),
+	Text             = "❄",
+	TextSize         = 17,
+	TextColor3       = COL_BLUE,
+	Font             = FONT_REG,
+	ZIndex           = 10,
+})
+local iconAngle = 0
+RunService.Heartbeat:Connect(function(dt)
+	iconAngle = iconAngle + dt * 22
+	btnIcon.Rotation = iconAngle
 end)
 
--- ── Drag ─────────────────────────────────────────────────────────────────────
-local dragging, dStart, dOrigin
-tbar.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true; dStart = i.Position; dOrigin = main.Position
-    end
-end)
-tbar.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-end)
-sg.InputChanged:Connect(function(i)
-    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-        local d = i.Position - dStart
-        main.Position = UDim2.new(dOrigin.X.Scale, dOrigin.X.Offset+d.X, dOrigin.Y.Scale, dOrigin.Y.Offset+d.Y)
-    end
-end)
+local btnTitle = label(freezeBtn, {
+	Size             = UDim2.new(1, -50, 0, 18),
+	Position         = UDim2.new(0, 44, 0, 8),
+	Text             = "FREEZE TRADE MACHINE",
+	TextColor3       = COL_TEXT,
+	TextSize         = 11,
+	Font             = FONT_BOLD,
+	TextXAlignment   = Enum.TextXAlignment.Left,
+	ZIndex           = 10,
+})
 
--- ── Status dot ───────────────────────────────────────────────────────────────
-local sbar = N("Frame", {
-    Size             = UDim2.new(1, 0, 0, 20),
-    Position         = UDim2.new(0, 0, 0, 34),
-    BackgroundColor3 = Color3.fromRGB(5, 9, 15),
-    BackgroundTransparency = 0.06,
-    BorderSizePixel  = 0,
-    ZIndex           = 4,
-}, main)
-local sDot = N("Frame", {
-    Size             = UDim2.new(0, 6, 0, 6),
-    Position         = UDim2.new(0, 10, 0.5, -3),
-    BackgroundColor3 = C.green,
-    BorderSizePixel  = 0,
-    ZIndex           = 5,
-}, sbar)
-CR(10, sDot)
-N("TextLabel", {
-    Size             = UDim2.new(1, -70, 1, 0),
-    Position         = UDim2.new(0, 20, 0, 0),
-    BackgroundTransparency = 1,
-    Text             = "ONLINE  —  ERVO NET",
-    TextColor3       = C.green,
-    Font             = Enum.Font.Code,
-    TextSize         = 9,
-    TextXAlignment   = Enum.TextXAlignment.Left,
-    ZIndex           = 5,
-}, sbar)
-local clkLbl = N("TextLabel", {
-    Size             = UDim2.new(0, 64, 1, 0),
-    Position         = UDim2.new(1, -66, 0, 0),
-    BackgroundTransparency = 1,
-    Text             = "00:00:00",
-    TextColor3       = C.muted,
-    Font             = Enum.Font.Code,
-    TextSize         = 9,
-    TextXAlignment   = Enum.TextXAlignment.Right,
-    ZIndex           = 5,
-}, sbar)
-RunService.Heartbeat:Connect(function()
-    sDot.BackgroundTransparency = (math.sin(tick()*3)+1)/2 * 0.6
-    local t = os.date("*t")
-    clkLbl.Text = string.format("%02d:%02d:%02d", t.hour, t.min, t.sec)
+local btnSub = label(freezeBtn, {
+	Size             = UDim2.new(1, -50, 0, 13),
+	Position         = UDim2.new(0, 44, 0, 28),
+	Text             = "click to execute freeze protocol",
+	TextColor3       = COL_TEXTDIM,
+	TextSize         = 9,
+	Font             = FONT_REG,
+	TextXAlignment   = Enum.TextXAlignment.Left,
+	ZIndex           = 10,
+})
+
+freezeBtn.MouseEnter:Connect(function()
+	TweenService:Create(freezeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(18, 58, 130), BackgroundTransparency = 0}):Play()
+	TweenService:Create(fbStroke, TweenInfo.new(0.15), {Transparency = 0.1}):Play()
+end)
+freezeBtn.MouseLeave:Connect(function()
+	TweenService:Create(freezeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(12, 42, 98), BackgroundTransparency = 0.05}):Play()
+	TweenService:Create(fbStroke, TweenInfo.new(0.15), {Transparency = 0.35}):Play()
+end)
+freezeBtn.MouseButton1Down:Connect(function()
+	TweenService:Create(freezeBtn, TweenInfo.new(0.08), {
+		Size     = UDim2.new(1, -38, 0, 45),
+		Position = UDim2.new(0, 19, 0, 50),
+	}):Play()
+end)
+freezeBtn.MouseButton1Up:Connect(function()
+	TweenService:Create(freezeBtn, TweenInfo.new(0.18, Enum.EasingStyle.Back), {
+		Size     = UDim2.new(1, -32, 0, 48),
+		Position = UDim2.new(0, 16, 0, 48),
+	}):Play()
 end)
 
--- ── Body scroll ──────────────────────────────────────────────────────────────
-local scroll = N("ScrollingFrame", {
-    Size                 = UDim2.new(1, 0, 1, -75),
-    Position             = UDim2.new(0, 0, 0, 54),
-    BackgroundTransparency = 1,
-    BorderSizePixel      = 0,
-    ScrollBarThickness   = 2,
-    ScrollBarImageColor3 = C.border,
-    CanvasSize           = UDim2.new(0, 0, 0, 0),
-    AutomaticCanvasSize  = Enum.AutomaticSize.Y,
-    ZIndex               = 2,
-}, main)
-N("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 7)}, scroll)
-PAD(10, 10, 8, 10, scroll)
+-- ── protocol progress ───────────────────
+label(body, {
+	Size             = UDim2.new(0, 140, 0, 13),
+	Position         = UDim2.new(0, 16, 0, 108),
+	Text             = "PROTOCOL PROGRESS",
+	TextColor3       = COL_TEXTDIM,
+	TextSize         = 8,
+	Font             = FONT_BOLD,
+	TextXAlignment   = Enum.TextXAlignment.Left,
+	ZIndex           = 9,
+})
 
-local ord = 0
-local function O() ord += 1; return ord end
+local barPct = label(body, {
+	Size             = UDim2.new(0.5, -16, 0, 13),
+	Position         = UDim2.new(0.5, 0, 0, 108),
+	Text             = "0%",
+	TextColor3       = COL_BLUE,
+	TextSize         = 8,
+	Font             = FONT_BOLD,
+	TextXAlignment   = Enum.TextXAlignment.Right,
+	ZIndex           = 9,
+})
 
-local function secLabel(txt)
-    local f = N("Frame", {Size = UDim2.new(1, 0, 0, 13), BackgroundTransparency = 1, LayoutOrder = O()}, scroll)
-    N("TextLabel", {
-        Size             = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        Text             = "// "..txt:upper(),
-        TextColor3       = C.muted,
-        Font             = Enum.Font.Code,
-        TextSize         = 9,
-        TextXAlignment   = Enum.TextXAlignment.Left,
-    }, f)
+local barBg = frame(body, {
+	Size             = UDim2.new(1, -32, 0, 6),
+	Position         = UDim2.new(0, 16, 0, 124),
+	BackgroundColor3 = Color3.fromRGB(12, 30, 65),
+	ZIndex           = 9,
+})
+corner(barBg, UDim.new(0, 3))
+
+local barFill = frame(barBg, {
+	Size             = UDim2.new(0, 0, 1, 0),
+	BackgroundColor3 = COL_BLUE,
+	ZIndex           = 10,
+})
+corner(barFill, UDim.new(0, 3))
+
+local stepLbl = label(body, {
+	Size             = UDim2.new(1, -32, 0, 15),
+	Position         = UDim2.new(0, 16, 0, 136),
+	Text             = ">  —",
+	TextColor3       = COL_TEXTDIM,
+	TextSize         = 9,
+	Font             = FONT_REG,
+	TextXAlignment   = Enum.TextXAlignment.Left,
+	ZIndex           = 9,
+})
+
+-- separator
+frame(body, {
+	Size             = UDim2.new(1, -32, 0, 1),
+	Position         = UDim2.new(0, 16, 0, 158),
+	BackgroundColor3 = COL_BLUEDIM,
+	BackgroundTransparency = 0.65,
+	ZIndex           = 9,
+})
+
+local resultLbl = label(body, {
+	Size             = UDim2.new(1, -32, 0, 18),
+	Position         = UDim2.new(0, 16, 0, 165),
+	Text             = "",
+	TextColor3       = COL_GREEN,
+	TextSize         = 9,
+	Font             = FONT_BOLD,
+	TextXAlignment   = Enum.TextXAlignment.Left,
+	ZIndex           = 9,
+})
+
+-- ══════════════════════════════════════════
+-- MINIMIZE LOGIC
+-- ══════════════════════════════════════════
+local isMin   = false
+local SIZE_FULL = UDim2.new(0, W, 0, H)
+local SIZE_MINI = UDim2.new(0, W, 0, 38)
+
+minBtn.MouseButton1Click:Connect(function()
+	isMin = not isMin
+	minBtn.Text = isMin and "+" or "−"
+	TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		Size = isMin and SIZE_MINI or SIZE_FULL,
+	}):Play()
+	body.Visible = not isMin
+end)
+
+-- ══════════════════════════════════════════
+-- STATUS HELPER
+-- ══════════════════════════════════════════
+local function setStatus(txt, col)
+	statusLbl.Text = txt
+	TweenService:Create(statusDot, TweenInfo.new(0.2), {BackgroundColor3 = col}):Play()
+	TweenService:Create(statusLbl, TweenInfo.new(0.2), {TextColor3 = col}):Play()
 end
 
--- ── Mini metrics ─────────────────────────────────────────────────────────────
-secLabel("metrics")
-local mRow = N("Frame", {Size = UDim2.new(1, 0, 0, 48), BackgroundTransparency = 1, LayoutOrder = O()}, scroll)
-N("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 7), SortOrder = Enum.SortOrder.LayoutOrder}, mRow)
-
-local frozenLbl, activeLbl, pingLbl
-for i, md in ipairs({{"0","FROZEN",C.cyan},{"247","ACTIVE",C.warn},{"12ms","PING",C.ice}}) do
-    local card = N("Frame", {
-        Size             = UDim2.new(0.333, -5, 1, 0),
-        BackgroundColor3 = C.panel,
-        BackgroundTransparency = 0.2,
-        BorderSizePixel  = 0,
-        LayoutOrder      = i,
-    }, mRow)
-    CR(6, card); ST(C.border, 1, card)
-    local vl = N("TextLabel", {
-        Size             = UDim2.new(1, 0, 0, 24),
-        Position         = UDim2.new(0, 0, 0, 5),
-        BackgroundTransparency = 1,
-        Text             = md[1],
-        TextColor3       = md[3],
-        Font             = Enum.Font.GothamBold,
-        TextSize         = 17,
-        TextXAlignment   = Enum.TextXAlignment.Center,
-    }, card)
-    N("TextLabel", {
-        Size             = UDim2.new(1, 0, 0, 12),
-        Position         = UDim2.new(0, 0, 1, -14),
-        BackgroundTransparency = 1,
-        Text             = md[2],
-        TextColor3       = C.muted,
-        Font             = Enum.Font.Code,
-        TextSize         = 8,
-        TextXAlignment   = Enum.TextXAlignment.Center,
-    }, card)
-    if md[2]=="FROZEN" then frozenLbl=vl elseif md[2]=="ACTIVE" then activeLbl=vl else pingLbl=vl end
-end
-local pt = 0
-RunService.Heartbeat:Connect(function() pt+=1; if pt>200 then pt=0; pingLbl.Text=math.random(9,38).."ms" end end)
-
--- ── Target input ─────────────────────────────────────────────────────────────
-secLabel("target")
-local iRow = N("Frame", {Size = UDim2.new(1, 0, 0, 27), BackgroundTransparency = 1, LayoutOrder = O()}, scroll)
-N("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 7), SortOrder = Enum.SortOrder.LayoutOrder}, iRow)
-local inputBox = N("TextBox", {
-    Size             = UDim2.new(1, -82, 1, 0),
-    BackgroundColor3 = C.dark,
-    BackgroundTransparency = 0.1,
-    BorderSizePixel  = 0,
-    Text             = "",
-    PlaceholderText  = "Username / Trade ID...",
-    PlaceholderColor3 = C.muted,
-    TextColor3       = C.text,
-    Font             = Enum.Font.Code,
-    TextSize         = 11,
-    ClearTextOnFocus = false,
-    LayoutOrder      = 1,
-}, iRow)
-CR(5, inputBox); ST(C.border, 1, inputBox); PAD(7, 4, 0, 0, inputBox)
-
-local lockBtn = N("TextButton", {
-    Size             = UDim2.new(0, 74, 1, 0),
-    BackgroundColor3 = C.blue,
-    BackgroundTransparency = 0.1,
-    BorderSizePixel  = 0,
-    Text             = "Lock",
-    TextColor3       = C.ice,
-    Font             = Enum.Font.GothamBold,
-    TextSize         = 11,
-    AutoButtonColor  = false,
-    LayoutOrder      = 2,
-}, iRow)
-CR(5, lockBtn)
-lockBtn.MouseEnter:Connect(function() TW(lockBtn, 0.1, {BackgroundColor3 = C.bluhi}) end)
-lockBtn.MouseLeave:Connect(function() TW(lockBtn, 0.1, {BackgroundColor3 = C.blue}) end)
-
--- ── Freeze Buttons ────────────────────────────────────────────────────────────
-secLabel("controls")
-local btnGrid = N("Frame", {Size = UDim2.new(1, 0, 0, 68), BackgroundTransparency = 1, LayoutOrder = O()}, scroll)
-N("UIGridLayout", {
-    CellSize    = UDim2.new(0.5, -4, 0, 30),
-    CellPaddingX = UDim.new(0, 8),
-    CellPaddingY = UDim.new(0, 8),
-    SortOrder   = Enum.SortOrder.LayoutOrder,
-}, btnGrid)
-
-local freezeBtns = {}
-local bdefs = {
-    {txt="❄  Freeze Trade", bg=Color3.fromRGB(0,55,100), hi=Color3.fromRGB(0,88,148), id="freeze"},
-    {txt="⚡  Mass Freeze",  bg=Color3.fromRGB(0,25,68),  hi=Color3.fromRGB(0,48,108), id="mass"},
-    {txt="◈  Unfreeze All", bg=Color3.fromRGB(32,5,52),  hi=Color3.fromRGB(62,12,100),id="unfreeze"},
-    {txt="⚠  Bypass",       bg=Color3.fromRGB(50,22,0),  hi=Color3.fromRGB(100,50,0), id="bypass"},
-}
-for i, bd in ipairs(bdefs) do
-    local b = N("TextButton", {
-        BackgroundColor3 = bd.bg,
-        BackgroundTransparency = 0.1,
-        BorderSizePixel  = 0,
-        Text             = bd.txt,
-        TextColor3       = C.ice,
-        Font             = Enum.Font.GothamBold,
-        TextSize          = 11,
-        AutoButtonColor  = false,
-        LayoutOrder      = i,
-    }, btnGrid)
-    CR(5, b); ST(bd.hi, 1, b)
-    b.MouseEnter:Connect(function() TW(b, 0.1, {BackgroundColor3 = bd.hi}) end)
-    b.MouseLeave:Connect(function() TW(b, 0.1, {BackgroundColor3 = bd.bg}) end)
-    b.MouseButton1Down:Connect(function() TW(b, 0.07, {BackgroundTransparency = 0.45}) end)
-    b.MouseButton1Up:Connect(function() TW(b, 0.07, {BackgroundTransparency = 0.1}) end)
-    freezeBtns[bd.id] = b
-end
-
--- ── Progress Bar ─────────────────────────────────────────────────────────────
-local progWrap = N("Frame", {
-    Size             = UDim2.new(1, 0, 0, 32),
-    BackgroundColor3 = C.panel,
-    BackgroundTransparency = 0.2,
-    BorderSizePixel  = 0,
-    LayoutOrder      = O(),
-    Visible          = false,
-}, scroll)
-CR(6, progWrap); ST(C.border, 1, progWrap); PAD(8,8,5,5,progWrap)
-local progStatusLbl = N("TextLabel", {
-    Size             = UDim2.new(0.8, 0, 0, 13),
-    BackgroundTransparency = 1,
-    Text             = "Waiting...",
-    TextColor3       = C.muted,
-    Font             = Enum.Font.Code,
-    TextSize         = 9,
-    TextXAlignment   = Enum.TextXAlignment.Left,
-}, progWrap)
-local progPctLbl = N("TextLabel", {
-    Size             = UDim2.new(0.2, 0, 0, 13),
-    Position         = UDim2.new(0.8, 0, 0, 0),
-    BackgroundTransparency = 1,
-    Text             = "0%",
-    TextColor3       = C.cyan,
-    Font             = Enum.Font.Code,
-    TextSize         = 9,
-    TextXAlignment   = Enum.TextXAlignment.Right,
-}, progWrap)
-local progBg = N("Frame", {
-    Size             = UDim2.new(1, 0, 0, 4),
-    Position         = UDim2.new(0, 0, 1, -5),
-    BackgroundColor3 = C.dark,
-    BorderSizePixel  = 0,
-}, progWrap)
-CR(2, progBg)
-local progFill = N("Frame", {
-    Size             = UDim2.new(0, 0, 1, 0),
-    BackgroundColor3 = C.cyan,
-    BorderSizePixel  = 0,
-}, progBg)
-CR(2, progFill)
-
--- ── Log ──────────────────────────────────────────────────────────────────────
-secLabel("log")
-local logFrame = N("ScrollingFrame", {
-    Size                 = UDim2.new(1, 0, 0, 84),
-    BackgroundColor3     = C.dark,
-    BackgroundTransparency = 0.1,
-    BorderSizePixel      = 0,
-    ScrollBarThickness   = 2,
-    ScrollBarImageColor3 = C.border,
-    CanvasSize           = UDim2.new(0, 0, 0, 0),
-    AutomaticCanvasSize  = Enum.AutomaticSize.Y,
-    LayoutOrder          = O(),
-    ZIndex               = 2,
-}, scroll)
-CR(6, logFrame); ST(C.border, 1, logFrame); PAD(7, 7, 4, 4, logFrame)
-N("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 1)}, logFrame)
-
-local li = 0
-local function addLog(msg, col)
-    li += 1
-    local t = os.date("*t")
-    local row = N("Frame", {Size = UDim2.new(1, 0, 0, 13), BackgroundTransparency = 1, LayoutOrder = li}, logFrame)
-    N("TextLabel", {
-        Size             = UDim2.new(0, 50, 1, 0),
-        BackgroundTransparency = 1,
-        Text             = string.format("%02d:%02d:%02d", t.hour, t.min, t.sec),
-        TextColor3       = Color3.fromRGB(15, 42, 60),
-        Font             = Enum.Font.Code,
-        TextSize         = 9,
-        TextXAlignment   = Enum.TextXAlignment.Left,
-    }, row)
-    local lbl = N("TextLabel", {
-        Size             = UDim2.new(1, -54, 1, 0),
-        Position         = UDim2.new(0, 52, 0, 0),
-        BackgroundTransparency = 1,
-        Text             = msg,
-        TextColor3       = col or C.muted,
-        Font             = Enum.Font.Code,
-        TextSize         = 9,
-        TextXAlignment   = Enum.TextXAlignment.Left,
-    }, row)
-    lbl.TextTransparency = 1
-    TW(lbl, 0.18, {TextTransparency = 0})
-    task.defer(function()
-        logFrame.CanvasPosition = Vector2.new(0, 99999)
-    end)
-end
-
-addLog("Ervo Hub ready. Trade Freezer loaded.", C.cyan)
-addLog("DLL: ervo_freeze_engine.dll — OK", C.muted)
-addLog("Network: ERVO-NET connected.", C.green)
-
--- ── Bottom bar ────────────────────────────────────────────────────────────────
-local bot = N("Frame", {
-    Size             = UDim2.new(1, 0, 0, 21),
-    Position         = UDim2.new(0, 0, 1, -21),
-    BackgroundColor3 = Color3.fromRGB(4, 8, 14),
-    BackgroundTransparency = 0.06,
-    BorderSizePixel  = 0,
-    ZIndex           = 4,
-}, main)
-N("TextLabel", {
-    Size             = UDim2.new(1, -10, 1, 0),
-    Position         = UDim2.new(0, 10, 0, 0),
-    BackgroundTransparency = 1,
-    Text             = "❄ Ervo Hub v5.0  //  FOR ENTERTAINMENT ONLY",
-    TextColor3       = C.muted,
-    Font             = Enum.Font.Code,
-    TextSize         = 8,
-    TextXAlignment   = Enum.TextXAlignment.Left,
-    ZIndex           = 5,
-}, bot)
-
--- ── Fake Steps ───────────────────────────────────────────────────────────────
-local fakeSteps = {
-    freeze = {
-        {"Scanning trade queue...",         C.cyan},
-        {"Hooking trade API endpoints...",  C.muted},
-        {"Injecting freeze payload...",     C.muted},
-        {"Patching offsets [0x4A2F]...",    C.warn},
-        {"Applying ice layer ❄",           C.cyan},
-        {"Trade frozen successfully!",      C.green},
-    },
-    mass = {
-        {"Enumerating trades (247 found)",  C.cyan},
-        {"Allocating freeze buffer...",     C.muted},
-        {"Deploying mass freeze...",        C.warn},
-        {"Cascade freeze in progress ❄❄",  C.cyan},
-        {"247 trades frozen.",              C.green},
-    },
-    unfreeze = {
-        {"Locating frozen handles...",      C.cyan},
-        {"Releasing freeze locks...",       C.muted},
-        {"Restoring trade engine...",       C.muted},
-        {"All trades unfrozen.",            C.green},
-    },
-    bypass = {
-        {"Detecting anti-cheat sigs...",    C.warn},
-        {"Obfuscating injection route...",  C.warn},
-        {"Spoofing module checksums...",    C.muted},
-        {"Bypass ACTIVE.",                  C.green},
-    },
+-- ══════════════════════════════════════════
+-- FREEZE SEQUENCE (cosmetic)
+-- ══════════════════════════════════════════
+local isFreezing = false
+local STEPS = {
+	{t = "Locating Trade Machine instance...",    p = 0.10, d = 1.1},
+	{t = "Establishing secure channel...",         p = 0.20, d = 0.9},
+	{t = "Injecting freeze packet [0x3AF]...",     p = 0.32, d = 1.2},
+	{t = "Suspending trade session thread...",     p = 0.44, d = 1.0},
+	{t = "Overriding trade lock state...",         p = 0.55, d = 0.8},
+	{t = "Synchronising server snapshot...",       p = 0.66, d = 1.1},
+	{t = "Writing state to memory buffer...",      p = 0.76, d = 0.9},
+	{t = "Sealing transaction layer...",           p = 0.87, d = 1.0},
+	{t = "Validating freeze integrity...",         p = 0.95, d = 0.7},
+	{t = "Protocol complete.",                     p = 1.00, d = 0.5},
 }
 
--- ── Freeze Logic ──────────────────────────────────────────────────────────────
-local frozen = 0
-local busy   = false
+freezeBtn.MouseButton1Click:Connect(function()
+	if isFreezing then return end
+	isFreezing = true
 
-local function setDisabled(dis)
-    for _, b in pairs(freezeBtns) do
-        b.Active = not dis
-        TW(b, 0.12, {BackgroundTransparency = dis and 0.55 or 0.1})
-    end
-    lockBtn.Active = not dis
-    TW(lockBtn, 0.12, {BackgroundTransparency = dis and 0.55 or 0.1})
-end
+	resultLbl.Text = ""
+	btnTitle.Text  = "EXECUTING PROTOCOL..."
+	btnSub.Text    = "Trade Machine freeze in progress"
+	setStatus("ACTIVE  ·  freeze protocol running", COL_GREEN)
 
-local function runFreeze(ftype)
-    if busy then return end
-    busy = true
-    setDisabled(true)
+	for _, step in ipairs(STEPS) do
+		stepLbl.Text = ">  " .. step.t
+		barPct.Text  = math.floor(step.p * 100) .. "%"
+		local tw = TweenService:Create(barFill,
+			TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{Size = UDim2.new(step.p, 0, 1, 0)}
+		)
+		tw:Play()
+		tw.Completed:Wait()
+		task.wait(step.d)
+	end
 
-    local target = inputBox.Text ~= "" and inputBox.Text or lp.Name
-    if inputBox.Text ~= "" then addLog("Target: "..target, C.warn) end
-    addLog("Starting "..ftype:upper().."...", C.cyan)
+	-- success
+	resultLbl.Text = "[  OK  ]  Trade Machine frozen and locked."
+	btnTitle.Text  = "TRADE MACHINE FROZEN"
+	btnSub.Text    = "freeze protocol executed successfully"
+	setStatus("DONE  ·  Trade Machine lock confirmed", COL_GREEN)
+	TweenService:Create(btnAccent, TweenInfo.new(0.3), {BackgroundColor3 = COL_GREEN}):Play()
+	TweenService:Create(barFill,   TweenInfo.new(0.3), {BackgroundColor3 = COL_GREEN}):Play()
 
-    progWrap.Visible = true
-    local steps = fakeSteps[ftype]
-    for i, step in ipairs(steps) do
-        local pct = i / #steps
-        TW(progFill, 0.22, {Size = UDim2.new(pct, 0, 1, 0)})
-        progStatusLbl.Text = step[1]:sub(1, 38)
-        progPctLbl.Text    = math.floor(pct * 100).."%"
-        addLog(step[1], step[2])
-        task.wait(0.28 + math.random() * 0.26)
-    end
-    task.wait(0.25)
+	task.wait(4)
 
-    progWrap.Visible = false
-    TW(progFill, 0.1, {Size = UDim2.new(0, 0, 1, 0)})
+	-- reset
+	TweenService:Create(barFill, TweenInfo.new(0.45), {
+		Size             = UDim2.new(0, 0, 1, 0),
+		BackgroundColor3 = COL_BLUE,
+	}):Play()
+	TweenService:Create(btnAccent, TweenInfo.new(0.3), {BackgroundColor3 = COL_ACCENT}):Play()
+	task.wait(0.45)
 
-    if ftype == "freeze" then
-        frozen += 1
-    elseif ftype == "mass" then
-        frozen += 247
-    elseif ftype == "unfreeze" then
-        frozen = 0
-    end
-
-    -- pulse metric labels
-    TW(frozenLbl, 0.1, {TextTransparency = 0.6})
-    TW(activeLbl,  0.1, {TextTransparency = 0.6})
-    task.wait(0.12)
-    frozenLbl.Text = tostring(frozen)
-    activeLbl.Text = tostring(math.max(0, 247 - frozen))
-    TW(frozenLbl, 0.2, {TextTransparency = 0})
-    TW(activeLbl,  0.2, {TextTransparency = 0})
-
-    setDisabled(false)
-    busy = false
-end
-
-for id, btn in pairs(freezeBtns) do
-    btn.MouseButton1Click:Connect(function()
-        coroutine.wrap(function() runFreeze(id) end)()
-    end)
-end
-lockBtn.MouseButton1Click:Connect(function()
-    coroutine.wrap(function() runFreeze("freeze") end)()
+	barPct.Text    = "0%"
+	stepLbl.Text   = ">  —"
+	resultLbl.Text = ""
+	btnTitle.Text  = "FREEZE TRADE MACHINE"
+	btnSub.Text    = "click to execute freeze protocol"
+	setStatus("IDLE  ·  awaiting command", COL_BLUE)
+	isFreezing = false
 end)
+
+-- ══════════════════════════════════════════
+-- ENTRY ANIMATION
+-- ══════════════════════════════════════════
+main.Size                   = UDim2.new(0, W, 0, 0)
+main.BackgroundTransparency = 1
+task.wait(0.05)
+TweenService:Create(main, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+	Size                   = SIZE_FULL,
+	BackgroundTransparency = 0.12,
+}):Play()
