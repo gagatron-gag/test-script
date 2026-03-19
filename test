@@ -1,0 +1,41 @@
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local SEAT_SIZE = Vector3.new(2, 0.5, 2)
+local SPAWN_DISTANCE = 5
+
+local origin = hrp.Position + hrp.CFrame.LookVector * SPAWN_DISTANCE + Vector3.new(0, 50, 0)
+local rayParams = RaycastParams.new()
+rayParams.FilterDescendantsInstances = {character}
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local result = workspace:Raycast(origin, Vector3.new(0, -200, 0), rayParams)
+local groundY = hrp.Position.Y - 3
+if result then groundY = result.Position.Y end
+
+local spawnPos = Vector3.new(
+    hrp.Position.X + hrp.CFrame.LookVector.X * SPAWN_DISTANCE,
+    groundY + SEAT_SIZE.Y / 2,
+    hrp.Position.Z + hrp.CFrame.LookVector.Z * SPAWNDISTANCE
+)
+
+local seat = Instance.new("Seat")
+seat.Name = "SpawnedSeat" .. player.Name
+seat.Size = SEAT_SIZE
+seat.Anchored = true
+seat.Material = Enum.Material.Neon
+seat.Color = Color3.fromRGB(0, 255, 255)
+seat.TopSurface = Enum.SurfaceType.Smooth
+seat.BottomSurface = Enum.SurfaceType.Smooth
+seat.CFrame = CFrame.lookAt(spawnPos, Vector3.new(hrp.Position.X, spawnPos.Y, hrp.Position.Z))
+
+-- Try parenting to character first (bypasses workspace filter in many games)
+seat.Parent = character
+
+-- Then move to workspace
+seat.Parent = workspace
+
+print("Seat spawned for", player.Name)
